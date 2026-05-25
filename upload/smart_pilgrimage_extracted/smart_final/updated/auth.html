@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block title %}{{ t.login }}{% endblock %}
+
+{% block head %}
+<style>
+.auth-section { display: flex; justify-content: center; align-items: center; min-height: 80vh; padding: 40px 20px; }
+.auth-card { background: var(--card); padding: 40px; border-radius: var(--radius); border: 1px solid var(--border); width: 100%; max-width: 480px; }
+.auth-card h1 { text-align: center; margin-bottom: 8px; }
+.auth-subtitle { text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 28px; }
+.auth-tabs { display: flex; gap: 0; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 28px; }
+.auth-tab { flex: 1; padding: 10px; text-align: center; background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.95rem; transition: all 0.2s; }
+.auth-tab.active { background: var(--gold); color: var(--bg); font-weight: 600; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; margin-bottom: 6px; font-size: 0.9rem; color: var(--text-muted); }
+.location-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.location-icon-group { position: relative; }
+.location-icon-group .input { padding-right: 40px; }
+.location-btn { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 1.1rem; color: var(--gold); padding: 4px; }
+.location-status { font-size: 0.8rem; color: var(--green); margin-top: 4px; display: none; }
+.location-status.show { display: block; }
+.auth-link { text-align: center; margin-top: 16px; color: var(--text-muted); font-size: 0.9rem; }
+.divider { display: flex; align-items: center; gap: 12px; margin: 20px 0; color: var(--text-muted); font-size: 0.85rem; }
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="section auth-section">
+    <div class="auth-card">
+        <h1>🕌 Smart Pilgrimage</h1>
+        <p class="auth-subtitle">O'zbekiston ziyorat va turizm platformasi</p>
+
+        <div class="auth-tabs">
+            <button class="auth-tab {% if mode != 'register' %}active{% endif %}" onclick="switchTab('login')">{{ t.login }}</button>
+            <button class="auth-tab {% if mode == 'register' %}active{% endif %}" onclick="switchTab('register')">{{ t.register }}</button>
+        </div>
+
+        <!-- LOGIN FORM -->
+        <div id="form-login" {% if mode == 'register' %}style="display:none"{% endif %}>
+            <form method="post" action="/api/auth/login">
+                {% if request.query_params.next %}<input type="hidden" name="next" value="{{ request.query_params.next }}">{% endif %}
+                <div class="form-group">
+                    <label>📧 Email</label>
+                    <input type="email" name="email" class="input" required placeholder="email@example.com">
+                </div>
+                <div class="form-group">
+                    <label>🔒 {{ t.password }}</label>
+                    <input type="password" name="password" class="input" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn-gold btn-full">{{ t.login }} →</button>
+            </form>
+            <div class="divider">yoki</div>
+            <p class="auth-link">Hisobingiz yo'qmi? <a href="#" onclick="switchTab('register')">{{ t.register }}</a></p>
+        </div>
+
+        <!-- REGISTER FORM -->
+        <div id="form-register" {% if mode != 'register' %}style="display:none"{% endif %}>
+            <form method="post" action="/api/auth/register" id="registerForm">
+                {% if request.query_params.next %}<input type="hidden" name="next" value="{{ request.query_params.next }}">{% endif %}
+
+                <div class="form-group">
+                    <label>👤 Ism</label>
+                    <input type="text" name="first_name" class="input" placeholder="Ismingiz" required>
+                </div>
+                <div class="form-group">
+                    <label>👥 Familiya</label>
+                    <input type="text" name="last_name" class="input" placeholder="Familiyangiz">
+                </div>
+                <div class="form-group">
+                    <label>📧 Email</label>
+                    <input type="email" name="email" class="input" required placeholder="email@example.com">
+                </div>
+                <div class="form-group">
+                    <label>📞 Telefon</label>
+                    <input type="tel" name="phone" class="input" placeholder="+998 90 123 45 67">
+                </div>
+                <div class="form-group">
+                    <label>🔒 {{ t.password }}</label>
+                    <input type="password" name="password" class="input" required placeholder="Kamida 6 ta belgi">
+                </div>
+
+                <!-- LOCATION SECTION -->
+                <div style="background: rgba(201,168,76,0.08); border: 1px solid rgba(201,168,76,0.2); border-radius: 10px; padding: 16px; margin-bottom: 16px;">
+                    <p style="font-size:0.85rem; color:var(--gold); font-weight:600; margin-bottom:12px;">📍 Manzilingizni kiriting</p>
+
+                    <div class="location-row">
+                        <div class="form-group" style="margin-bottom:0">
+                            <label>Viloyat</label>
+                            <select name="region" class="select" id="regionSelect" onchange="updateDistricts()">
+                                <option value="">— Tanlang —</option>
+                                <option value="Toshkent sh.">Toshkent shahri</option>
+                                <option value="Toshkent vil.">Toshkent viloyati</option>
+                                <option value="Samarqand">Samarqand viloyati</option>
+                                <option value="Buxoro">Buxoro viloyati</option>
+                                <option value="Namangan">Namangan viloyati</option>
+                                <option value="Andijon">Andijon viloyati</option>
+                                <option value="Farg'ona">Farg'ona viloyati</option>
+                                <option value="Qashqadaryo">Qashqadaryo viloyati</option>
+                                <option value="Surxondaryo">Surxondaryo viloyati</option>
+                                <option value="Sirdaryo">Sirdaryo viloyati</option>
+                                <option value="Jizzax">Jizzax viloyati</option>
+                                <option value="Navoiy">Navoiy viloyati</option>
+                                <option value="Xorazm">Xorazm viloyati</option>
+                                <option value="Qoraqalpog'iston">Qoraqalpog'iston Resp.</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0">
+                            <label>Tuman/shahar</label>
+                            <select name="district" class="select" id="districtSelect">
+                                <option value="">— Avval viloyat —</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:12px;">
+                        <label style="font-size:0.85rem; color:var(--text-muted); display:block; margin-bottom:6px;">Yoki joriy lokatsiyani yuboring</label>
+                        <div class="location-icon-group">
+                            <input type="text" name="location_display" id="locationDisplay" class="input" placeholder="Lokatsiya aniqlanmagan" readonly>
+                            <button type="button" class="location-btn" onclick="getLocation()" title="Lokatsiyani aniqlash">📡</button>
+                        </div>
+                        <input type="hidden" name="latitude" id="regLatitude">
+                        <input type="hidden" name="longitude" id="regLongitude">
+                        <div class="location-status" id="locationStatus">✅ Lokatsiya aniqlandi!</div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-gold btn-full">{{ t.register }} →</button>
+            </form>
+            <div class="divider">yoki</div>
+            <p class="auth-link">Hisobingiz bormi? <a href="#" onclick="switchTab('login')">{{ t.login }}</a></p>
+        </div>
+
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Tab switching ──
+function switchTab(tab) {
+    document.getElementById('form-login').style.display = tab === 'login' ? 'block' : 'none';
+    document.getElementById('form-register').style.display = tab === 'register' ? 'block' : 'none';
+    document.querySelectorAll('.auth-tab').forEach((el, i) => {
+        el.classList.toggle('active', (i === 0 && tab === 'login') || (i === 1 && tab === 'register'));
+    });
+    history.replaceState(null, '', '/auth?mode=' + tab + '&lang={{ lang }}');
+}
+
+// ── Districts data for all Uzbekistan ──
+const DISTRICTS = {
+    "Toshkent sh.": ["Bektemir", "Chilonzor", "Hamza", "Mirobod", "Mirzo Ulug'bek", "Olmazor", "Sergeli", "Shayxontohur", "Uchtepa", "Yakkasaroy", "Yunusobod", "Yashnobod"],
+    "Toshkent vil.": ["Angren", "Bekobod", "Bo'stonliq", "Bo'ka", "Chinoz", "Oqqo'rg'on", "Ohangaron", "Parkent", "Piskent", "Qibray", "Toshkent tumani", "Yuqorichirchiq", "Zangiota"],
+    "Samarqand": ["Samarqand sh.", "Bulung'ur", "Ishtixon", "Jomboy", "Kattaqo'rg'on sh.", "Narpay", "Nurobod", "Oqdaryo", "Pastdarg'om", "Payariq", "Qo'shrabot", "Toyloq", "Urgut"],
+    "Buxoro": ["Buxoro sh.", "Vobkent", "G'ijduvon", "Jondor", "Kogon sh.", "Olot", "Peshku", "Qorovulbozor", "Romitan", "Shofirkon", "Qorako'l"],
+    "Namangan": ["Namangan sh.", "Chortoq", "Chust", "Kosonsoy", "Mingbuloq", "Norin", "Pop", "To'raqo'rg'on", "Uychi", "Yangiqo'rg'on"],
+    "Andijon": ["Andijon sh.", "Asaka", "Baliqchi", "Bo'z", "Buloqboshi", "Izboskan", "Jalolquduq", "Xo'jaobod", "Marhamat", "Oltinkol", "Paxtaobod", "Qo'rg'ontepa", "Shahrixon", "Ulug'nor"],
+    "Farg'ona": ["Farg'ona sh.", "Bag'dod", "Beshariq", "Buvayda", "Dangara", "Furqat", "Qo'shtepa", "Quva", "Oltiariq", "O'zbekiston", "Rishton", "So'x", "Toshloq", "Uchko'prik", "Yozyovon"],
+    "Qashqadaryo": ["Qarshi sh.", "Chiroqchi", "Dehqonobod", "G'uzor", "Kasbi", "Koson", "Mirishkor", "Muborak", "Nishon", "Qamashi", "Shahrisabz sh.", "Yakkabog'"],
+    "Surxondaryo": ["Termiz sh.", "Angor", "Bandixon", "Boysun", "Denov", "Jarqo'rg'on", "Muzrabot", "Oltinsoy", "Qiziriq", "Qumqo'rg'on", "Sariosiyo", "Sherobod", "Sho'rchi", "Uzun"],
+    "Sirdaryo": ["Guliston sh.", "Boyovut", "Havast", "Mirzaobod", "Oqoltin", "Sardoba", "Sayxunobod", "Xovos"],
+    "Jizzax": ["Jizzax sh.", "Arnasoy", "Baxmal", "Do'stlik", "Forish", "G'allaorol", "Mirzacho'l", "Paxtakor", "Yangiobod", "Zafar", "Zomin"],
+    "Navoiy": ["Navoiy sh.", "Karmana", "Konimex", "Navbahor", "Nurota", "Qiziltepa", "Tomdi", "Uchquduq", "Xatirchi"],
+    "Xorazm": ["Urganch sh.", "Bog'ot", "Gurlan", "Xiva", "Xonqa", "Qo'shko'pir", "Shovot", "Tuproqqal'a", "Yangiariq", "Yangibozor"],
+    "Qoraqalpog'iston": ["Nukus sh.", "Amudaryo", "Beruniy", "Bo'zatov", "Chimboy", "Ellikkala", "Kegeyli", "Mo'ynoq", "Nukus tumani", "Qanliko'l", "Qo'ng'irot", "Qorao'zak", "Shumanay", "Taxtako'pir", "To'rtko'l", "Xo'jayli"]
+};
+
+function updateDistricts() {
+    const region = document.getElementById('regionSelect').value;
+    const sel = document.getElementById('districtSelect');
+    sel.innerHTML = '<option value="">— Tanlang —</option>';
+    if (region && DISTRICTS[region]) {
+        DISTRICTS[region].forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d; opt.textContent = d;
+            sel.appendChild(opt);
+        });
+    }
+}
+
+// ── Geolocation ──
+function getLocation() {
+    const btn = document.querySelector('.location-btn');
+    btn.textContent = '⏳';
+    if (!navigator.geolocation) {
+        alert("Bu brauzer lokatsiyani qo'llab-quvvatlamaydi");
+        btn.textContent = '📡';
+        return;
+    }
+    navigator.geolocation.getCurrentPosition(
+        function(pos) {
+            const lat = pos.coords.latitude.toFixed(6);
+            const lon = pos.coords.longitude.toFixed(6);
+            document.getElementById('regLatitude').value = lat;
+            document.getElementById('regLongitude').value = lon;
+            document.getElementById('locationDisplay').value = lat + ', ' + lon;
+            document.getElementById('locationStatus').classList.add('show');
+            btn.textContent = '✅';
+            // Reverse geocode to show city name
+            fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=uz`)
+                .then(r => r.json())
+                .then(d => {
+                    const city = d.address.city || d.address.town || d.address.county || '';
+                    const state = d.address.state || '';
+                    if (city) document.getElementById('locationDisplay').value = city + (state ? ', ' + state : '');
+                }).catch(() => {});
+        },
+        function(err) {
+            alert("Lokatsiya aniqlab bo'lmadi: " + err.message);
+            btn.textContent = '📡';
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+    );
+}
+</script>
+{% endblock %}

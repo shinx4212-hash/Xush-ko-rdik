@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% set active = 'bookings' %}
+{% block title %}{{ t.bookings }}{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <h1 class="page-title">📋 {{ t.bookings }}</h1>
+        {% if bookings %}
+        <div class="bookings-list">
+            {% for b in bookings %}
+            <div class="booking-card">
+                <div class="booking-info">
+                    <h3>{{ b.place.name_uz if lang=='uz' else b.place.name_ru if lang=='ru' else b.place.name_en }}</h3>
+                    <p>📅 {{ b.check_in.strftime('%Y-%m-%d') }} → {{ b.check_out.strftime('%Y-%m-%d') }} | {{ b.guests_count }} {{ t.guests }}, {{ b.rooms_count }} {{ t.rooms }}</p>
+                    {% if b.total_price %}<p class="booking-price">{{ '%,d'|format(b.total_price|int) }} UZS</p>{% endif %}
+                </div>
+                <div class="booking-status">
+                    <span class="badge badge-{{ b.status|lower }}">{{ b.status }}</span>
+                    {% if b.status == 'PENDING' %}
+                    <form method="post" action="/api/bookings/{{ b.id }}/cancel">
+                        <button type="submit" class="btn-danger btn-sm">{{ t.cancel }}</button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="no-results"><p>📋 {{ t.no_bookings }}</p></div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

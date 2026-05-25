@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% set active = 'restaurants' %}
+{% block title %}{{ t.restaurants }}{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <script>window.location.href = '/places/RESTAURANT?lang={{ lang }}';</script>
+        <noscript>
+            <div class="no-results">
+                <p>🚀 <a href="/places/RESTAURANT?lang={{ lang }}" class="btn-gold">{{ t.restaurants }} →</a></p>
+            </div>
+        </noscript>
+    </div>
+</section>
+{% endblock %}

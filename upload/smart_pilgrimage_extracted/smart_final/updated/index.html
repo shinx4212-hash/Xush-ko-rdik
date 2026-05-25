@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+{% block title %}Smart Pilgrimage{% endblock %}
+
+{% block head %}
+<style>
+.hero { position: relative; overflow: hidden; }
+.hero-bg-img {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%; object-fit: cover;
+    transition: opacity 0.8s ease;
+}
+.hero-bg-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.35) 100%);
+}
+.hero-location-picker {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.12); backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.25); border-radius: 24px;
+    padding: 8px 18px; color: #fff; cursor: pointer; font-size: 0.9rem;
+    margin-bottom: 16px; transition: all 0.2s;
+}
+.hero-location-picker:hover { background: rgba(255,255,255,0.2); }
+.hero-loc-dropdown {
+    display: none; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+    background: rgba(20,20,20,0.95); backdrop-filter: blur(12px);
+    border: 1px solid var(--border); border-radius: 12px; padding: 14px;
+    z-index: 100; width: 340px; max-width: 90vw;
+}
+.hero-loc-dropdown.show { display: block; }
+.hero-loc-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <!-- Dynamic background image -->
+    <img src="https://images.unsplash.com/photo-1596005554384-d293674c91d0?w=1600&q=80"
+         class="hero-bg-img" id="heroBgImg" alt="O'zbekiston">
+    <div class="hero-bg-overlay"></div>
+    <div class="hero-content" style="position:relative;z-index:2;">
+
+        <!-- Location picker in hero -->
+        <div style="position:relative;display:inline-block;margin-bottom:10px;">
+            <button class="hero-location-picker" onclick="toggleHeroLoc()">
+                📍 <span id="heroLocText">Shaharni tanlang</span> ▾
+            </button>
+            <div class="hero-loc-dropdown" id="heroLocDropdown">
+                <div class="hero-loc-row">
+                    <div>
+                        <label style="font-size:0.78rem;color:#aaa;display:block;margin-bottom:4px;">Viloyat</label>
+                        <select class="select" id="heroRegion" onchange="heroUpdateDistricts()" style="background:rgba(30,30,30,0.9)">
+                            <option value="">— Tanlang —</option>
+                            <option value="Toshkent sh.">Toshkent sh.</option>
+                            <option value="Toshkent vil.">Toshkent vil.</option>
+                            <option value="Samarqand">Samarqand</option>
+                            <option value="Buxoro">Buxoro</option>
+                            <option value="Namangan">Namangan</option>
+                            <option value="Andijon">Andijon</option>
+                            <option value="Farg'ona">Farg'ona</option>
+                            <option value="Qashqadaryo">Qashqadaryo</option>
+                            <option value="Surxondaryo">Surxondaryo</option>
+                            <option value="Xorazm">Xorazm</option>
+                            <option value="Qoraqalpog'iston">QQR</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:0.78rem;color:#aaa;display:block;margin-bottom:4px;">Tuman</label>
+                        <select class="select" id="heroDistrict" onchange="setHeroLocation()" style="background:rgba(30,30,30,0.9)">
+                            <option value="">— Tanlang —</option>
+                        </select>
+                    </div>
+                </div>
+                <button onclick="heroGPS()" style="width:100%;margin-top:10px;padding:9px;background:var(--gold);color:#000;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:0.9rem;">📡 GPS lokatsiyam</button>
+            </div>
+        </div>
+
+        <h1>Smart <span class="gold">Pilgrimage</span></h1>
+        <p class="hero-sub">{{ t.hero_subtitle }}</p>
+        <div class="hero-stats">
+            <div class="stat"><span class="stat-num">6.6M</span><span class="stat-label">{{ t.tourists_per_year }}</span></div>
+            <div class="stat"><span class="stat-num">{{ total_places }}</span><span class="stat-label">{{ t.places_count }}</span></div>
+            <div class="stat"><span class="stat-num">{{ cities_count }}</span><span class="stat-label">{{ t.cities_count }}</span></div>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <h2 class="section-title">🏨 {{ t.hotels }}</h2>
+        <div class="grid">
+            {% for place in featured_hotels %}
+            <a href="/place/{{ place.id }}?lang={{ lang }}" class="card">
+                <div class="card-img gradient-hotel">
+                    <span class="card-badge hotel">HOTEL</span>
+                </div>
+                <div class="card-body">
+                    <h3>{{ place.name_uz if lang=='uz' else place.name_ru if lang=='ru' else place.name_en }}</h3>
+                    <p class="card-city">📍 {{ place.city }}</p>
+                    <div class="card-footer">
+                        <span class="stars">{{ stars(place.rating) }}</span>
+                        {% if place.price_from %}<span class="price">{{ fmt_price(place.price_from) }}</span>{% endif %}
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<section class="section section-dark">
+    <div class="container">
+        <h2 class="section-title">🍽️ {{ t.restaurants }}</h2>
+        <div class="grid">
+            {% for place in featured_restaurants %}
+            <a href="/place/{{ place.id }}?lang={{ lang }}" class="card">
+                <div class="card-img gradient-restaurant">
+                    <span class="card-badge restaurant">RESTAURANT</span>
+                </div>
+                <div class="card-body">
+                    <h3>{{ place.name_uz if lang=='uz' else place.name_ru if lang=='ru' else place.name_en }}</h3>
+                    <p class="card-city">📍 {{ place.city }}</p>
+                    <div class="card-footer">
+                        <span class="stars">{{ stars(place.rating) }}</span>
+                        {% if place.price_from %}<span class="price">{{ fmt_price(place.price_from) }}</span>{% endif %}
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <h2 class="section-title">🕌 {{ t.pilgrimage }}</h2>
+        <div class="grid">
+            {% for place in featured_pilgrimage %}
+            <a href="/place/{{ place.id }}?lang={{ lang }}" class="card">
+                <div class="card-img gradient-pilgrimage"><span class="card-badge pilgrimage">ZIYORAT</span></div>
+                <div class="card-body">
+                    <h3>{{ place.name_uz if lang=='uz' else place.name_ru if lang=='ru' else place.name_en }}</h3>
+                    <p class="card-city">📍 {{ place.city }}</p>
+                    <div class="card-footer"><span class="stars">{{ stars(place.rating) }}</span></div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const HERO_IMAGES = {
+    "Samarqand":  "https://images.unsplash.com/photo-1596005554384-d293674c91d0?w=1600&q=80",
+    "Buxoro":     "https://images.unsplash.com/photo-1604076913837-52ab5629fbe4?w=1600&q=80",
+    "Xiva":       "https://images.unsplash.com/photo-1559594175-acb3cad10c75?w=1600&q=80",
+    "Toshkent":   "https://images.unsplash.com/photo-1590077428593-a55bb07c4665?w=1600&q=80",
+    "Namangan":   "https://images.unsplash.com/photo-1541417904950-b855846fe074?w=1600&q=80",
+    "Andijon":    "https://images.unsplash.com/photo-1548625149-720754874de0?w=1600&q=80",
+    "default":    "https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=1600&q=80"
+};
+const REGION_CITY = {
+    "Toshkent sh.":"Toshkent","Toshkent vil.":"Toshkent","Samarqand":"Samarqand",
+    "Buxoro":"Buxoro","Namangan":"Namangan","Andijon":"Andijon","Farg'ona":"Farg'ona",
+    "Xorazm":"Xiva","Qashqadaryo":"Qarshi","Surxondaryo":"Termiz"
+};
+const DISTRICTS_H = {
+    "Toshkent sh.": ["Bektemir","Chilonzor","Hamza","Mirobod","Mirzo Ulug'bek","Olmazor","Sergeli","Shayxontohur","Uchtepa","Yakkasaroy","Yunusobod","Yashnobod"],
+    "Toshkent vil.": ["Angren","Bekobod","Chinoz","Ohangaron","Parkent","Piskent","Qibray","Zangiota"],
+    "Samarqand": ["Samarqand sh.","Ishtixon","Kattaqo'rg'on sh.","Urgut","Toyloq"],
+    "Buxoro": ["Buxoro sh.","Vobkent","G'ijduvon","Kogon sh.","Romitan"],
+    "Namangan": ["Namangan sh.","Chortoq","Chust","Pop"],
+    "Andijon": ["Andijon sh.","Asaka","Shahrixon","Jalolquduq"],
+    "Farg'ona": ["Farg'ona sh.","Rishton","Marg'ilon sh.","Qo'qon sh."],
+    "Qashqadaryo": ["Qarshi sh.","Shahrisabz sh.","G'uzor"],
+    "Surxondaryo": ["Termiz sh.","Denov","Boysun"],
+    "Xorazm": ["Urganch sh.","Xiva","Xonqa"],
+    "Qoraqalpog'iston": ["Nukus sh.","Chimboy","Xo'jayli"]
+};
+
+// Load saved location
+try {
+    const s = JSON.parse(localStorage.getItem('sp_location')||'{}');
+    if (s.label) document.getElementById('heroLocText').textContent = s.label;
+    if (s.lat) {
+        const city = s.label?.split(',')[0]?.trim();
+        if (HERO_IMAGES[city]) changeBg(HERO_IMAGES[city]);
+    }
+} catch(e) {}
+
+function changeBg(url) {
+    const img = document.getElementById('heroBgImg');
+    img.style.opacity = '0';
+    setTimeout(() => { img.src = url; img.style.opacity = '1'; }, 300);
+}
+
+function toggleHeroLoc() {
+    document.getElementById('heroLocDropdown').classList.toggle('show');
+}
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.hero-location-picker') && !e.target.closest('.hero-loc-dropdown')) {
+        document.getElementById('heroLocDropdown').classList.remove('show');
+    }
+});
+
+function heroUpdateDistricts() {
+    const region = document.getElementById('heroRegion').value;
+    const sel = document.getElementById('heroDistrict');
+    sel.innerHTML = '<option value="">— Tanlang —</option>';
+    if (DISTRICTS_H[region]) DISTRICTS_H[region].forEach(d => {
+        const o = document.createElement('option'); o.value=d; o.textContent=d; sel.appendChild(o);
+    });
+    const cityKey = REGION_CITY[region];
+    if (HERO_IMAGES[cityKey]) changeBg(HERO_IMAGES[cityKey]);
+}
+
+function setHeroLocation() {
+    const region = document.getElementById('heroRegion').value;
+    const district = document.getElementById('heroDistrict').value;
+    if (district) {
+        const label = district + ', ' + region;
+        document.getElementById('heroLocText').textContent = label;
+        document.getElementById('heroLocDropdown').classList.remove('show');
+        // Save for other pages
+        localStorage.setItem('sp_location', JSON.stringify({lat:null,lon:null,label}));
+        const cityKey = REGION_CITY[region] || 'default';
+        if (HERO_IMAGES[cityKey]) changeBg(HERO_IMAGES[cityKey]);
+    }
+}
+
+function heroGPS() {
+    document.getElementById('heroLocText').textContent = '⏳ Aniqlanmoqda...';
+    navigator.geolocation.getCurrentPosition(pos => {
+        const lat = pos.coords.latitude, lon = pos.coords.longitude;
+        localStorage.setItem('sp_location', JSON.stringify({lat, lon, label:'GPS lokatsiya'}));
+        document.getElementById('heroLocText').textContent = 'GPS lokatsiya ✅';
+        document.getElementById('heroLocDropdown').classList.remove('show');
+        fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=uz`)
+            .then(r=>r.json()).then(d=>{
+                const city = d.address.city||d.address.town||'GPS';
+                document.getElementById('heroLocText').textContent = city;
+                if (HERO_IMAGES[city]) changeBg(HERO_IMAGES[city]);
+                localStorage.setItem('sp_location', JSON.stringify({lat,lon,label:city}));
+            }).catch(()=>{});
+    }, err=>{document.getElementById('heroLocText').textContent='❌ Xato';},{enableHighAccuracy:true});
+}
+</script>
+{% endblock %}

@@ -1,0 +1,398 @@
+{% extends "base.html" %}
+{% block title %}{{ type_label }}{% endblock %}
+
+{% block head %}
+<style>
+/* ── City banner ── */
+.city-banner {
+    position: relative;
+    height: 180px;
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 20px;
+    transition: all 0.4s;
+}
+.city-banner-img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    transition: opacity 0.5s;
+}
+.city-banner-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(to right, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.2) 100%);
+    display: flex; align-items: center; padding: 24px;
+}
+.city-banner-text h2 { color: #fff; margin: 0 0 4px; font-size: 1.4rem; }
+.city-banner-text p { color: rgba(255,255,255,0.8); font-size: 0.88rem; margin: 0; }
+
+/* ── Location bar ── */
+.location-bar { background: linear-gradient(135deg, rgba(201,168,76,0.1), rgba(201,168,76,0.04)); border: 1px solid rgba(201,168,76,0.25); border-radius: 12px; padding: 14px 18px; margin-bottom: 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.location-bar-info { flex: 1; min-width: 180px; }
+.location-bar-info strong { color: var(--gold); display: block; font-size: 0.9rem; }
+.location-bar-info span { color: var(--text-muted); font-size: 0.82rem; }
+.location-bar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-locate { padding: 7px 14px; background: var(--gold); color: var(--bg); border: none; border-radius: 8px; cursor: pointer; font-size: 0.82rem; font-weight: 600; white-space: nowrap; }
+.btn-locate.outline { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+.btn-locate.outline:hover { border-color: var(--gold); color: var(--gold); }
+
+/* ── Location picker ── */
+.location-picker { display: none; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 14px; }
+.location-picker.show { display: block; }
+.loc-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* ── Distance badge ── */
+.distance-badge { display: inline-flex; align-items: center; gap: 4px; background: rgba(59,130,246,0.12); color: #60a5fa; border-radius: 6px; padding: 2px 8px; font-size: 0.76rem; font-weight: 600; }
+.card-footer-extra { display: flex; align-items: center; justify-content: space-between; margin-top: 5px; min-height: 22px; }
+.btn-route { padding: 3px 10px; background: #3b82f6; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.76rem; }
+
+/* ── Route modal ── */
+.route-modal { display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.72); align-items: center; justify-content: center; }
+.route-modal.open { display: flex; }
+.route-box { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; width: 90%; max-width: 680px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; }
+.route-header { padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.route-header h2 { font-size: 1rem; }
+.route-close { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.4rem; }
+.route-body { padding: 16px 22px; flex: 1; overflow-y: auto; }
+.route-stats { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.rs-chip { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; text-align: center; flex: 1; }
+.rs-chip .val { font-size: 1.1rem; font-weight: 700; color: var(--gold); display: block; }
+.rs-chip .lbl { font-size: 0.75rem; color: var(--text-muted); }
+#routeMap { height: 300px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 14px; }
+.maps-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.maps-btn { flex: 1; min-width: 100px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.82rem; text-align: center; background: var(--card); text-decoration: none; transition: all 0.2s; }
+.maps-btn:hover { border-color: var(--gold); color: var(--gold); }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container">
+    <h1 class="page-title">{{ type_label }}</h1>
+
+    <!-- ══ DYNAMIC CITY BANNER ══ -->
+    <div class="city-banner" id="cityBanner">
+      <img src="https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=1200&q=80" class="city-banner-img" id="cityBannerImg" alt="O'zbekiston">
+      <div class="city-banner-overlay">
+        <div class="city-banner-text">
+          <h2 id="cityBannerTitle">🇺🇿 O'zbekiston</h2>
+          <p id="cityBannerSub">Barcha joylar ko'rsatilmoqda</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ LOCATION BAR ══ -->
+    <div class="location-bar" id="locationBar">
+      <div style="font-size:1.4rem">📍</div>
+      <div class="location-bar-info">
+        <strong id="userLocLabel">Lokatsiyangiz aniqlanmagan</strong>
+        <span id="userLocSub">Yaqin joylarni topish uchun lokatsiyani kiriting</span>
+      </div>
+      <div class="location-bar-actions">
+        <button class="btn-locate" onclick="autoLocate()">📡 GPS</button>
+        <button class="btn-locate outline" onclick="togglePicker()">🗺️ Manzil tanlash</button>
+      </div>
+    </div>
+
+    <!-- ══ MANUAL PICKER ══ -->
+    <div class="location-picker" id="locationPicker">
+      <p style="font-size:0.85rem;color:var(--gold);font-weight:600;margin-bottom:10px;">📌 Manzilingizni tanlang</p>
+      <div class="loc-row">
+        <div>
+          <label style="font-size:0.78rem;color:var(--text-muted);display:block;margin-bottom:4px;">Viloyat</label>
+          <select class="select" id="pickerRegion" onchange="pickerUpdateDistricts()">
+            <option value="">— Tanlang —</option>
+            <option value="Toshkent sh.">Toshkent shahri</option>
+            <option value="Toshkent vil.">Toshkent viloyati</option>
+            <option value="Samarqand">Samarqand viloyati</option>
+            <option value="Buxoro">Buxoro viloyati</option>
+            <option value="Namangan">Namangan viloyati</option>
+            <option value="Andijon">Andijon viloyati</option>
+            <option value="Farg'ona">Farg'ona viloyati</option>
+            <option value="Qashqadaryo">Qashqadaryo viloyati</option>
+            <option value="Surxondaryo">Surxondaryo viloyati</option>
+            <option value="Sirdaryo">Sirdaryo viloyati</option>
+            <option value="Jizzax">Jizzax viloyati</option>
+            <option value="Navoiy">Navoiy viloyati</option>
+            <option value="Xorazm">Xorazm viloyati</option>
+            <option value="Qoraqalpog'iston">Qoraqalpog'iston</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.78rem;color:var(--text-muted);display:block;margin-bottom:4px;">Tuman/shahar</label>
+          <select class="select" id="pickerDistrict" onchange="setLocationFromPicker()">
+            <option value="">— Tanlang —</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEARCH FILTERS -->
+    <form method="get" class="filters">
+      <input type="hidden" name="lang" value="{{ lang }}">
+      <div class="filter-row">
+        <div class="search-box">
+          <input type="text" name="search" value="{{ search }}" placeholder="{{ t.search }}">
+        </div>
+        <select name="city" class="select" id="cityFilter" onchange="updateBannerFromFilter(this.value)">
+          <option value="">{{ t.all_cities }}</option>
+          {% for c in cities %}
+          <option value="{{ c }}" {% if c == city %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+        <select name="sort" class="select" id="sortSelect">
+          <option value="popular" {% if sort == 'popular' %}selected{% endif %}>{{ t.sort_popular }}</option>
+          <option value="rating" {% if sort == 'rating' %}selected{% endif %}>{{ t.sort_rating }}</option>
+          <option value="price" {% if sort == 'price' %}selected{% endif %}>{{ t.sort_price }}</option>
+          <option value="new" {% if sort == 'new' %}selected{% endif %}>{{ t.sort_new }}</option>
+          <option value="nearest" id="sortNearest" {% if sort == 'nearest' %}selected{% endif %} style="display:none">📍 Yaqinidan</option>
+        </select>
+        <button type="submit" class="btn-gold">🔍</button>
+      </div>
+    </form>
+
+    {% if places %}
+    <p class="results-count">{{ t.results }}: {{ total }}</p>
+    <div class="grid" id="placesGrid">
+      {% for place in places %}
+      <div class="card-wrapper" data-lat="{{ place.latitude }}" data-lon="{{ place.longitude }}" data-id="{{ place.id }}" data-name="{{ place['name_'+lang] }}">
+        <a href="/place/{{ place.id }}?lang={{ lang }}" class="card">
+          <div class="card-img gradient-{{ place.place_type.lower() }}">
+            <span class="card-badge {{ place.place_type.lower() }}">{{ place.place_type }}</span>
+            {# HALOL BELGISI OLIB TASHLANDI #}
+          </div>
+          <div class="card-body">
+            <h3>{{ place['name_'+lang] }}</h3>
+            <p class="card-city">📍 {{ place.city }}</p>
+            <div class="card-footer">
+              <span class="stars">{{ stars(place.rating) }}</span>
+              <span class="review-count">({{ place.review_count }})</span>
+              {% if place.price_from %}<span class="price">{{ fmt_price(place.price_from) }}</span>{% endif %}
+            </div>
+            <div class="card-footer-extra">
+              <span class="distance-badge" id="dist-{{ place.id }}" style="display:none">—</span>
+              <button class="btn-route" id="route-{{ place.id }}"
+                onclick="event.preventDefault();openRoute('{{ place.id }}','{{ place['name_'+lang] }}',{{ place.latitude }},{{ place.longitude }})"
+                style="display:none">🗺️ Yo'l</button>
+            </div>
+          </div>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+
+    {% if total_pages > 1 %}
+    <div class="pagination">
+      {% if page > 1 %}<a href="?page={{ page-1 }}&lang={{ lang }}&search={{ search }}&city={{ city }}&sort={{ sort }}" class="btn-outline">←</a>{% endif %}
+      <span>{{ page }} / {{ total_pages }}</span>
+      {% if page < total_pages %}<a href="?page={{ page+1 }}&lang={{ lang }}&search={{ search }}&city={{ city }}&sort={{ sort }}" class="btn-outline">→</a>{% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="no-results"><p>🔍 {{ t.no_results }}</p></div>
+    {% endif %}
+  </div>
+</section>
+
+<!-- ROUTE MODAL -->
+<div class="route-modal" id="routeModal">
+  <div class="route-box">
+    <div class="route-header">
+      <h2>🗺️ <span id="routeDestName">—</span></h2>
+      <button class="route-close" onclick="closeRoute()">✕</button>
+    </div>
+    <div class="route-body">
+      <div class="route-stats">
+        <div class="rs-chip"><span class="val" id="routeDist">—</span><span class="lbl">Masofa</span></div>
+        <div class="rs-chip"><span class="val" id="routeTime">—</span><span class="lbl">Avtomobil</span></div>
+        <div class="rs-chip"><span class="val" id="routeWalk">—</span><span class="lbl">Piyoda</span></div>
+      </div>
+      <div id="routeMap"></div>
+      <div class="maps-btns" id="routeMapsBtns"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── City images (for banner) ──
+const CITY_IMAGES = {
+    "Samarqand": ["https://images.unsplash.com/photo-1596005554384-d293674c91d0?w=1200&q=80", "Samarqand — Registon maydoni va ko'hna inshootlar"],
+    "Buxoro":    ["https://images.unsplash.com/photo-1604076913837-52ab5629fbe4?w=1200&q=80", "Buxoro — Qadimiy shahar va Kalon minorasi"],
+    "Xiva":      ["https://images.unsplash.com/photo-1559594175-acb3cad10c75?w=1200&q=80",    "Xiva — Ichan Qal'a va Kalta Minor"],
+    "Toshkent":  ["https://images.unsplash.com/photo-1590077428593-a55bb07c4665?w=1200&q=80", "Toshkent — Zamonaviy poytaxt"],
+    "Namangan":  ["https://images.unsplash.com/photo-1541417904950-b855846fe074?w=1200&q=80", "Namangan — Farg'ona vodiysining markazi"],
+    "Andijon":   ["https://images.unsplash.com/photo-1548625149-720754874de0?w=1200&q=80",    "Andijon — Tarixiy shahar"],
+    "Farg'ona":  ["https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=1200&q=80", "Farg'ona — Ipak yo'li shahri"],
+    "default":   ["https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=1200&q=80", "O'zbekiston — Barcha joylar"]
+};
+
+const REGION_CITY_MAP = {
+    "Toshkent sh.": "Toshkent", "Toshkent vil.": "Toshkent",
+    "Samarqand": "Samarqand", "Buxoro": "Buxoro",
+    "Namangan": "Namangan", "Andijon": "Andijon",
+    "Farg'ona": "Farg'ona", "Xorazm": "Xiva",
+    "Qashqadaryo": "Qarshi", "Surxondaryo": "Termiz",
+};
+
+const REGION_COORDS = {
+    "Toshkent sh.": [41.2995,69.2401], "Toshkent vil.": [41.22,69.85],
+    "Samarqand": [39.6542,66.9597], "Buxoro": [39.7747,64.4286],
+    "Namangan": [41.0,71.67], "Andijon": [40.7821,72.3442],
+    "Farg'ona": [40.3864,71.7864], "Qashqadaryo": [38.86,65.79],
+    "Surxondaryo": [37.94,67.57], "Sirdaryo": [40.38,68.72],
+    "Jizzax": [40.12,67.84], "Navoiy": [40.09,65.38],
+    "Xorazm": [41.52,60.63], "Qoraqalpog'iston": [43.8,58.5]
+};
+
+const DISTRICTS = {
+    "Toshkent sh.": {"Bektemir":[41.252,69.348],"Chilonzor":[41.276,69.202],"Hamza":[41.303,69.273],"Mirobod":[41.295,69.247],"Mirzo Ulug'bek":[41.328,69.264],"Olmazor":[41.317,69.225],"Sergeli":[41.237,69.271],"Shayxontohur":[41.306,69.236],"Uchtepa":[41.289,69.197],"Yakkasaroy":[41.283,69.251],"Yunusobod":[41.341,69.258],"Yashnobod":[41.267,69.292]},
+    "Toshkent vil.": {"Angren":[41.019,70.145],"Bekobod":[40.217,69.218],"Chinoz":[40.938,68.766],"Oqqo'rg'on":[40.898,69.393],"Ohangaron":[40.901,69.626],"Parkent":[41.297,69.678],"Piskent":[40.899,69.181],"Qibray":[41.384,69.417],"Zangiota":[41.377,69.149]},
+    "Samarqand": {"Samarqand sh.":[39.6542,66.9597],"Ishtixon":[39.975,66.491],"Kattaqo'rg'on sh.":[39.9,66.25],"Urgut":[39.402,67.252],"Toyloq":[39.527,66.826]},
+    "Buxoro": {"Buxoro sh.":[39.7747,64.4286],"Vobkent":[40.026,64.511],"G'ijduvon":[40.097,64.686],"Kogon sh.":[39.718,64.553],"Romitan":[39.934,64.384]},
+    "Namangan": {"Namangan sh.":[41.0,71.67],"Chortoq":[41.064,71.845],"Chust":[41.0,71.24],"Pop":[40.88,71.094]},
+    "Andijon": {"Andijon sh.":[40.7821,72.3442],"Asaka":[40.64,72.245],"Shahrixon":[40.702,72.05]},
+    "Farg'ona": {"Farg'ona sh.":[40.3864,71.7864],"Rishton":[40.356,71.279],"Marg'ilon sh.":[40.476,71.722]},
+    "Qashqadaryo": {"Qarshi sh.":[38.86,65.79],"Shahrisabz sh.":[39.055,66.835]},
+    "Surxondaryo": {"Termiz sh.":[37.2241,67.278],"Denov":[38.272,67.895]},
+    "Sirdaryo": {"Guliston sh.":[40.489,68.784],"Havast":[40.653,68.833]},
+    "Jizzax": {"Jizzax sh.":[40.12,67.84],"Zomin":[39.959,68.411]},
+    "Navoiy": {"Navoiy sh.":[40.09,65.38],"Nurota":[40.561,65.692]},
+    "Xorazm": {"Urganch sh.":[41.547,60.634],"Xiva":[41.378,60.364]},
+    "Qoraqalpog'iston": {"Nukus sh.":[42.461,59.611],"Chimboy":[42.943,59.784]}
+};
+
+// ── Banner update ──
+function updateBanner(cityKey) {
+    const data = CITY_IMAGES[cityKey] || CITY_IMAGES["default"];
+    const img = document.getElementById('cityBannerImg');
+    img.style.opacity = '0';
+    setTimeout(() => {
+        img.src = data[0];
+        img.style.opacity = '1';
+        document.getElementById('cityBannerTitle').textContent = '📍 ' + (cityKey === 'default' ? "O'zbekiston" : cityKey);
+        document.getElementById('cityBannerSub').textContent = data[1];
+    }, 200);
+}
+
+function updateBannerFromFilter(city) {
+    updateBanner(CITY_IMAGES[city] ? city : 'default');
+}
+
+// Init banner from selected city filter
+const initCity = document.getElementById('cityFilter')?.value;
+if (initCity) updateBanner(initCity);
+
+// ── User location ──
+let userLat=null, userLon=null, userLabel='';
+try { const s=JSON.parse(localStorage.getItem('sp_location')||'{}'); if(s.lat){userLat=s.lat;userLon=s.lon;userLabel=s.label||'';updateLocUI();updateDistances();} } catch(e){}
+
+function updateLocUI() {
+    document.getElementById('userLocLabel').textContent = '📍 ' + (userLabel || 'Lokatsiya aniqlandi');
+    document.getElementById('userLocSub').textContent = userLat ? `${userLat.toFixed(4)}, ${userLon.toFixed(4)} — Yaqin joylar ko'rsatilmoqda` : '';
+    const sn = document.getElementById('sortNearest');
+    if(sn) sn.style.display = userLat ? 'block' : 'none';
+}
+
+function autoLocate() {
+    if (!navigator.geolocation) { alert("GPS qo'llab-quvvatlanmaydi"); return; }
+    document.getElementById('userLocLabel').textContent = '⏳ Aniqlanmoqda...';
+    navigator.geolocation.getCurrentPosition(pos => {
+        userLat = pos.coords.latitude; userLon = pos.coords.longitude;
+        userLabel = 'GPS lokatsiya';
+        fetch(`https://nominatim.openstreetmap.org/reverse?lat=${userLat}&lon=${userLon}&format=json&accept-language=uz`)
+            .then(r=>r.json()).then(d=>{
+                userLabel = d.address.city||d.address.town||d.address.county||'GPS';
+                const city = userLabel;
+                updateBanner(CITY_IMAGES[city] ? city : 'default');
+            }).catch(()=>{})
+            .finally(() => {
+                localStorage.setItem('sp_location',JSON.stringify({lat:userLat,lon:userLon,label:userLabel}));
+                updateLocUI(); updateDistances(); togglePicker(false);
+            });
+    }, err=>{alert("GPS xatosi: "+err.message);document.getElementById('userLocLabel').textContent='Aniqlab bo\'lmadi';},{enableHighAccuracy:true,timeout:10000});
+}
+
+function togglePicker(force) {
+    const el = document.getElementById('locationPicker');
+    const show = force!==undefined ? force : !el.classList.contains('show');
+    el.classList.toggle('show', show);
+}
+
+function pickerUpdateDistricts() {
+    const region = document.getElementById('pickerRegion').value;
+    const sel = document.getElementById('pickerDistrict');
+    sel.innerHTML = '<option value="">— Tanlang —</option>';
+    if (DISTRICTS[region]) Object.keys(DISTRICTS[region]).forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d;sel.appendChild(o);});
+    if (region && REGION_COORDS[region]) {
+        const [la,lo] = REGION_COORDS[region];
+        userLat=la; userLon=lo; userLabel=region;
+        localStorage.setItem('sp_location',JSON.stringify({lat:la,lon:lo,label:region}));
+        const cityKey = REGION_CITY_MAP[region] || 'default';
+        updateBanner(cityKey);
+        updateLocUI(); updateDistances();
+    }
+}
+
+function setLocationFromPicker() {
+    const region = document.getElementById('pickerRegion').value;
+    const district = document.getElementById('pickerDistrict').value;
+    if (district && DISTRICTS[region] && DISTRICTS[region][district]) {
+        const [la,lo] = DISTRICTS[region][district];
+        userLat=la; userLon=lo; userLabel=district+', '+region;
+        localStorage.setItem('sp_location',JSON.stringify({lat:la,lon:lo,label:userLabel}));
+        const cityKey = REGION_CITY_MAP[region] || 'default';
+        updateBanner(cityKey);
+        updateLocUI(); updateDistances(); togglePicker(false);
+    }
+}
+
+// ── Haversine ──
+function haversine(a,b,c,d){const R=6371,dL=(c-a)*Math.PI/180,dO=(d-b)*Math.PI/180,x=Math.sin(dL/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dO/2)**2;return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
+
+function updateDistances() {
+    if (!userLat) return;
+    document.querySelectorAll('.card-wrapper').forEach(wrap => {
+        const la=parseFloat(wrap.dataset.lat), lo=parseFloat(wrap.dataset.lon), id=wrap.dataset.id;
+        if (!la||!lo) return;
+        const dist=haversine(userLat,userLon,la,lo);
+        const de=document.getElementById('dist-'+id), re=document.getElementById('route-'+id);
+        if(de){de.style.display='inline-flex';de.textContent=dist<1?(dist*1000).toFixed(0)+' m':dist.toFixed(1)+' km';}
+        if(re) re.style.display='inline-block';
+    });
+}
+
+// ── Route modal ──
+let routeMap=null, currentDest=null;
+function openRoute(id,name,dLat,dLon){
+    if(!userLat){alert("Avval lokatsiyangizni kiriting!");return;}
+    currentDest={id,name,lat:dLat,lon:dLon};
+    document.getElementById('routeDestName').textContent=name;
+    const dist=haversine(userLat,userLon,dLat,dLon);
+    const carMin=Math.round(dist/60*60), walkMin=Math.round(dist/5*60);
+    document.getElementById('routeDist').textContent=dist<1?(dist*1000).toFixed(0)+' m':dist.toFixed(1)+' km';
+    document.getElementById('routeTime').textContent=carMin<60?carMin+' daq':(carMin/60).toFixed(1)+' soat';
+    document.getElementById('routeWalk').textContent=walkMin<60?walkMin+' daq':Math.floor(walkMin/60)+'h '+(walkMin%60)+'min';
+    document.getElementById('routeMapsBtns').innerHTML=`
+        <a class="maps-btn" href="https://www.google.com/maps/dir/${userLat},${userLon}/${dLat},${dLon}" target="_blank">🗺️ Google Maps</a>
+        <a class="maps-btn" href="https://yandex.com/maps/?rtext=${userLat},${userLon}~${dLat},${dLon}&rtt=auto" target="_blank">🗺️ Yandex Maps</a>
+        <a class="maps-btn" href="https://2gis.uz/tashkent/directions/points/${userLon},${userLat}%7C${dLon},${dLat}" target="_blank">🗺️ 2GIS</a>
+    `;
+    document.getElementById('routeModal').classList.add('open');
+    setTimeout(()=>initRouteMap(dLat,dLon),80);
+}
+function initRouteMap(dLat,dLon){
+    if(routeMap){routeMap.remove();routeMap=null;}
+    routeMap=L.map('routeMap').setView([(userLat+dLat)/2,(userLon+dLon)/2],7);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM'}).addTo(routeMap);
+    L.marker([userLat,userLon],{icon:L.divIcon({html:'<div style="background:#22c55e;color:#fff;padding:5px 10px;border-radius:14px;font-size:11px;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,0.3)">📍 Siz</div>',className:'',iconAnchor:[20,12]})}).addTo(routeMap);
+    L.marker([dLat,dLon],{icon:L.divIcon({html:`<div style="background:#f59e0b;color:#fff;padding:5px 10px;border-radius:14px;font-size:11px;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,0.3)">🏁 ${currentDest.name.substring(0,16)}</div>`,className:'',iconAnchor:[0,12]})}).addTo(routeMap);
+    const line=L.polyline([[userLat,userLon],[dLat,dLon]],{color:'#3b82f6',weight:3,dashArray:'8,4'}).addTo(routeMap);
+    routeMap.fitBounds([[userLat,userLon],[dLat,dLon]],{padding:[30,30]});
+    const d=haversine(userLat,userLon,dLat,dLon);
+    if(d<500){fetch(`https://router.project-osrm.org/route/v1/driving/${userLon},${userLat};${dLon},${dLat}?overview=full&geometries=geojson`).then(r=>r.json()).then(data=>{if(data.routes&&data.routes[0]){routeMap.removeLayer(line);L.polyline(data.routes[0].geometry.coordinates.map(c=>[c[1],c[0]]),{color:'#3b82f6',weight:5}).addTo(routeMap);}}).catch(()=>{});}
+}
+function closeRoute(){document.getElementById('routeModal').classList.remove('open');if(routeMap){routeMap.remove();routeMap=null;}}
+document.getElementById('routeModal').addEventListener('click',function(e){if(e.target===this)closeRoute();});
+</script>
+{% endblock %}

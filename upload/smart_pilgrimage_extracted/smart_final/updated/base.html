@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Pilgrimage — {% block title %}O'zbekiston Ziyorat Turizmi{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+    .nav-location {
+        display: flex; align-items: center; gap: 5px;
+        font-size: 0.8rem; color: var(--text-muted);
+        padding: 4px 10px; border-radius: 16px;
+        border: 1px solid var(--border); cursor: pointer;
+        transition: all 0.2s; white-space: nowrap;
+        background: transparent;
+    }
+    .nav-location:hover { border-color: var(--gold); color: var(--gold); }
+    .nav-location .loc-dot { width:7px;height:7px;border-radius:50%;background:var(--text-muted);flex-shrink:0; }
+    .nav-location .loc-dot.active { background: #22c55e; box-shadow: 0 0 0 2px rgba(34,197,94,0.25); }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/?lang={{ lang }}" class="nav-logo">🕌 Smart Pilgrimage</a>
+            <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('active')">☰</button>
+            <div class="nav-links">
+                <a href="/?lang={{ lang }}" class="{% if active == 'home' %}active{% endif %}">{{ t.home }}</a>
+                <a href="/places/HOTEL?lang={{ lang }}" class="{% if active == 'hotels' %}active{% endif %}">🏨 {{ t.hotels }}</a>
+                <a href="/places/RESTAURANT?lang={{ lang }}" class="{% if active == 'restaurants' %}active{% endif %}">🍽️ {{ t.restaurants }}</a>
+                <a href="/places/PILGRIMAGE_SITE?lang={{ lang }}" class="{% if active == 'pilgrimage' %}active{% endif %}">🕌 {{ t.pilgrimage }}</a>
+                <a href="/places/SHOP?lang={{ lang }}" class="{% if active == 'shops' %}active{% endif %}">🛍️ {{ t.shops }}</a>
+                <a href="/map?lang={{ lang }}" class="{% if active == 'map' %}active{% endif %}">🗺️ {{ t.map }}</a>
+                {% if user %}
+                <a href="/bookings?lang={{ lang }}" class="{% if active == 'bookings' %}active{% endif %}">📋 {{ t.bookings }}</a>
+                <a href="/logout" class="btn-outline">{{ t.logout }}</a>
+                {% else %}
+                <a href="/auth?lang={{ lang }}" class="btn-gold">{{ t.login }}</a>
+                {% endif %}
+            </div>
+            <!-- Location indicator in navbar -->
+            <button class="nav-location" id="navLocBtn" onclick="window.location.href='/places/HOTEL?lang={{ lang }}'" title="Lokatsiyangiz">
+                <span class="loc-dot" id="navLocDot"></span>
+                <span id="navLocText">📍 Lokatsiya</span>
+            </button>
+            <div class="lang-switch">
+                <a href="/set-lang/uz" class="{% if lang == 'uz' %}active{% endif %}">🇺🇿 UZ</a>
+                <a href="/set-lang/ru" class="{% if lang == 'ru' %}active{% endif %}">🇷🇺 RU</a>
+                <a href="/set-lang/en" class="{% if lang == 'en' %}active{% endif %}">🇬🇧 EN</a>
+            </div>
+        </div>
+    </nav>
+    <main>{% block content %}{% endblock %}</main>
+    <footer class="footer">
+        <div class="container">
+            <p>© 2024 Smart Pilgrimage — O'zbekiston Ziyorat Turizmi Platformasi</p>
+        </div>
+    </footer>
+    <script src="/static/js/app.js"></script>
+    <script>
+    // Show saved location in navbar
+    try {
+        const saved = JSON.parse(localStorage.getItem('sp_location') || '{}');
+        if (saved.lat && saved.label) {
+            document.getElementById('navLocDot').classList.add('active');
+            document.getElementById('navLocText').textContent = '📍 ' + saved.label.substring(0, 14);
+        }
+    } catch(e) {}
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

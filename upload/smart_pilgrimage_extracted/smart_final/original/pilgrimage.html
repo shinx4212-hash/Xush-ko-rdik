@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% set active = 'pilgrimage' %}
+{% block title %}{{ t.pilgrimage }}{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <script>window.location.href = '/places/PILGRIMAGE_SITE?lang={{ lang }}';</script>
+        <noscript>
+            <div class="no-results">
+                <p>🚀 <a href="/places/PILGRIMAGE_SITE?lang={{ lang }}" class="btn-gold">{{ t.pilgrimage }} →</a></p>
+            </div>
+        </noscript>
+    </div>
+</section>
+{% endblock %}

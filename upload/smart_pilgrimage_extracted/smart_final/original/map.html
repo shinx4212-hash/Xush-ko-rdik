@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% set active = 'map' %}
+{% block title %}{{ t.map }}{% endblock %}
+
+{% block content %}
+<section class="section" style="padding-top:20px">
+    <div class="container">
+        <h1 class="page-title">🗺️ {{ t.map }}</h1>
+        <div class="map-filters">
+            <button onclick="filterMap('all')" class="btn-outline active" id="filter-all">{{ t.all }}</button>
+            <button onclick="filterMap('HOTEL')" class="btn-outline" id="filter-HOTEL">🏨 {{ t.filter_hotel }}</button>
+            <button onclick="filterMap('RESTAURANT')" class="btn-outline" id="filter-RESTAURANT">🍽️ {{ t.filter_restaurant }}</button>
+            <button onclick="filterMap('PILGRIMAGE_SITE')" class="btn-outline" id="filter-PILGRIMAGE_SITE">🕌 {{ t.filter_pilgrimage }}</button>
+            <button onclick="filterMap('SHOP')" class="btn-outline" id="filter-SHOP">🛍️ {{ t.filter_shop }}</button>
+        </div>
+    </div>
+    <div id="map" style="height:70vh;width:100%;border-radius:12px;margin:10px 0"></div>
+</section>
+
+<script>
+const places = {{ places|tojson }};
+let map, markers = [];
+const colors = {HOTEL:'#3b82f6', RESTAURANT:'#22c55e', PILGRIMAGE_SITE:'#f59e0b', SHOP:'#a855f7', ATTRACTION:'#f97316'};
+function initMap(){
+    map = L.map('map').setView([39.65,66.96],6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
+    places.forEach(p=>{
+        let m = L.marker([p.latitude,p.longitude],{
+            icon: L.divIcon({html:`<span style="background:${colors[p.place_type]||'#888'};color:#fff;padding:4px 8px;border-radius:12px;font-size:12px;white-space:nowrap">${p['name_{{ lang }}']||p.name_uz}</span>`,className:'',iconAnchor:[0,0]})
+        }).addTo(map);
+        m.bindPopup(`<b>${p['name_{{ lang }}']||p.name_uz}</b><br>${p.city}<br><a href="/place/${p.id}?lang={{ lang }}">{{ t.view }} →</a>`);
+        m.placeType = p.place_type;
+        markers.push(m);
+    });
+}
+function filterMap(type){
+    markers.forEach(m=>{m.setStyle({display:type==='all'||m.placeType===type?'block':'none'}); if(type!=='all'&&m.placeType!==type) map.removeLayer(m); else if(!map.hasLayer(m)) map.addLayer(m);});
+}
+initMap();
+</script>
+{% endblock %}
